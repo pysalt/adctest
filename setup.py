@@ -23,6 +23,7 @@ setup(
     install_requires=[
         'selenium==3.11.0',
         'requests==2.23.0',
+        'lxml==4.5.2',
     ],
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
