@@ -1,0 +1,4 @@
+PAGE_PATH_NAME = 'pages'
+RAW_PAGE_PATH_NAME = 'raw_pages'
+NAV_PAGE_PATH_NAME = 'navigation'
+RAW_PAGE_CLASS_POSTFIX = 'Raw'

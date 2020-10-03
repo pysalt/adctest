@@ -38,18 +38,27 @@ class BaseConfig(metaclass=BaseConfigMeta):
 
     def __init__(self, *args, **kwargs):
         if self.UPDATE_FROM_ENV:
-            if self.ENV_KEY_PREFIX is None:
-                raise RuntimeError('ENV_KEY_PREFIX must be specified if UPDATE_FROM_ENV==True')
             self.update_from_env()
 
     def update_from_custom_config(self, class_: 'BaseConfig'):
-        pass
+        """
+        Call this method before collecting tests
+        :param class_:
+        :return:
+        """
+        for name, attr in class_.__dict__.items():
+            if not name.startswith('_') and not callable(attr):
+                setattr(self, name, attr)
+        if self.UPDATE_FROM_ENV:
+            self.update_from_env()
 
     def update_from_env(self):
         """
         Переопределяет атрибуты конфига из переменных окружения
         :return:
         """
+        if self.ENV_KEY_PREFIX is None:
+            raise RuntimeError('ENV_KEY_PREFIX must be specified if UPDATE_FROM_ENV==True')
         used = []
         print('Startupdating e2e-config from environ')
         for key, value in os.environ.items():

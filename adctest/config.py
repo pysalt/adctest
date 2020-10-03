@@ -18,9 +18,6 @@ class Config(BaseConfig):
     BASE_APP_CONFIG = {
     }
 
-    CRON_RELATIVE_PATH = ''
-    CRON_TIMEOUT = 30
-
     WEB_DRIVER_WAIT = 10
     WEB_DRIVER_LOG_LEVEL = 'warning'
     SCREENSHOT_PATH = '/tmp/selenium_screenshots'
