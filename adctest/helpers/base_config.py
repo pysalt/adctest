@@ -13,40 +13,29 @@ class ConfigException(Exception):
         super().__init__(formatted_msg)
 
 
-class BaseConfigMeta(type):
-    def __new__(mcs, class_name, bases, attrs):
-        if class_name != 'BaseConfig':
-            mcs._validate_attribute(attrs)
-        return type.__new__(mcs, class_name, bases, attrs)
-
-    @classmethod
-    def _validate_attribute(mcs, attrs: Dict, prev_name: Optional[str] = ''):
-        for name, value in attrs.items():
-            if name.startswith('_') or callable(value):
-                continue
-            if isinstance(value, dict):
-                mcs._validate_attribute(value, prev_name=prev_name)
-                continue
-            if not isinstance(value, SUPPORTED_TYPES):
-                full_name = '.'.join(filter(lambda o: o, [prev_name, name]))
-                raise ConfigException('Config attribute {} have unsupported type {}', full_name, type(value))
-
-
-class BaseConfig(metaclass=BaseConfigMeta):
-    UPDATE_FROM_ENV = False
-    ENV_KEY_PREFIX = None
+class BaseConfig(object):
+    UPDATE_FROM_ENV: bool = False
+    ENV_KEY_PREFIX: Optional[str] = None
 
     def __init__(self, *args, **kwargs):
+        self._validate_attribute()
         if self.UPDATE_FROM_ENV:
             self.update_from_env()
 
-    def update_from_custom_config(self, class_: 'BaseConfig'):
+    def _validate_attribute(self):
+        for name, value in self.__dict__.items():
+            if name.startswith('_') or callable(value):
+                continue
+            if not isinstance(value, SUPPORTED_TYPES):
+                raise ConfigException('Config attribute {} have unsupported type {}', name, type(value))
+
+    def update_from_custom_dict_config(self, config_: Dict):
         """
         Call this method before collecting tests
-        :param class_:
+        :param config_:
         :return:
         """
-        for name, attr in class_.__dict__.items():
+        for name, attr in config_.items():
             if not name.startswith('_') and not callable(attr):
                 setattr(self, name, attr)
         if self.UPDATE_FROM_ENV:
@@ -95,3 +84,26 @@ class BaseConfig(metaclass=BaseConfigMeta):
         if isinstance(base_dct[key], dict):
             raise ConfigException('Cannot replace attribute of dict type from environ')
         base_dct[key] = cls._convert_value_type_from_exist(base_dct[key], value)
+
+
+class ConfigAttrsMeta(type):
+    def __new__(mcs, class_name, bases, attrs):
+        """
+        Args:
+            class_name (str): the name of the class being created
+            bases (list of class): the parents of the class being created
+            attrs (str => obj dict): the attributes as defined in the class
+                definition
+
+        Returns:
+            A new class
+        """
+        config_class = bases[0]
+        new_attrs = {}
+        for name, attr in config_class.__dict__.items():
+            if not name.startswith('_') and not callable(attr):
+                new_attrs[name] = name
+
+        new_class = type.__new__(mcs, class_name, tuple(), new_attrs)
+
+        return new_class

@@ -1,6 +1,7 @@
 from abc import ABCMeta
 from typing import List, Dict, Optional
 from urllib.parse import urljoin
+from dataclasses import dataclass
 
 from adctest.config import config
 from adctest.page_helpers.scripts import PAGE_READY_SCRIPT, check_js_condition_is_true
@@ -14,6 +15,28 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
+
+
+@dataclass
+class PageConfig:
+    base_url: str
+    page_loader_css_class: str
+    """
+    css-класс для поиска лоадера (ракета) страницы в верстке
+    Устанавливается мета-классом из конфига, если не переопределен в классе наследнике
+    """
+    table_loader_css_class: str
+    """
+    css-класс для поиска лоадера таблицы в верстке
+    Устанавливается мета-классом из конфига, если не переопределен в классе наследнике
+    """
+    modal_visible_css_class: str
+    """
+    css-класс для поиска открытого попапа на странице
+    Устанавливается мета-классом из конфига, если не переопределен в классе наследнике
+    """
+    has_page_ready_script: bool = False
+    """нужно ли проверять e2eReady атрибут после загрузки страницы селениумом, кстанавливается мета-классом"""
 
 
 class BasePageMeta(ABCMeta):
@@ -36,64 +59,35 @@ class BasePageMeta(ABCMeta):
         all_attrs = get_parents_classes_attrs(bases)
         all_attrs.update(attrs)
 
-        app_name = all_attrs.pop('app_name', None)
-        if not app_name:
-            raise BasePageException('Page object must have "app_name" attribute')
+        page_conf: Optional[PageConfig] = all_attrs.get('page_conf')
+        if not page_conf or not isinstance(page_conf, PageConfig):
+            raise BasePageException('Page object must have "page_conf" attribute which inherit from PageConfig')
 
-        app_config = config.BASE_APP_CONFIG.get(app_name)
-        base_url = app_config.get('base_url')
-        if not base_url:
-            raise BasePageException(f'Base url not found in config for project {app_name}. Fix it!!!')
-        new_attrs['_base_url'] = base_url
+        new_attrs['_base_url'] = page_conf.base_url
 
         page_url = all_attrs.pop('page_url', None)
         if page_url is None:
             raise BasePageException(f'Page object must have "page_url" attribute')
-        new_attrs['page_url'] = urljoin(base_url, page_url)
+        new_attrs['page_url'] = urljoin(page_conf.base_url, page_url)
 
         valid_urls = all_attrs.pop('valid_urls', [])
         valid_urls.append(page_url)
-        new_attrs['valid_urls'] = [urljoin(base_url, url) for url in valid_urls]
+        new_attrs['valid_urls'] = [urljoin(page_conf.base_url, url) for url in valid_urls]
 
-        new_attrs['has_page_ready_script'] = app_config.get('has_page_ready_script', False)
+        all_attrs.update(new_attrs)
 
-        for attr_name in {'page_loader_css_class', 'table_loader_css_class', 'modal_visible_css_class'}:
-            value = all_attrs.pop(attr_name, None) or app_config.get(attr_name)
-            if value is None:
-                raise BasePageException(f'{attr_name} attribute must be set in config for current app {app_name}')
-            new_attrs[attr_name] = value
-
-        new_attrs.update(all_attrs)
-
-        new_class = type.__new__(mcs, class_name, bases, new_attrs)
+        new_class = type.__new__(mcs, class_name, bases, all_attrs)
 
         return new_class
 
 
 class BasePage(AbstractBasePage):
-    app_name: str = None
-    """имя приложения из енума JSAppName, устанавливается в сабклассе парсером"""
     page_url: str = None
     """относительный роут страницы, устанавливается в сабклассе парсером"""
-    has_page_ready_script: bool = False
-    """нужно ли проверять e2eReady атрибут после загрузки страницы селениумом, кстанавливается мета-классом"""
+    page_conf: PageConfig
+    """основные настройки страницы"""
     valid_urls: List[str] = []
     """относительные роуты, которые тоже могут вести на эту страницу (например, у логина здесь может быть logout)"""
-    page_loader_css_class: str = None
-    """
-    css-класс для поиска лоадера (ракета) страницы в верстке
-    Устанавливается мета-классом из конфига, если не переопределен в классе наследнике
-    """
-    table_loader_css_class: str = None
-    """
-    css-класс для поиска лоадера таблицы в верстке
-    Устанавливается мета-классом из конфига, если не переопределен в классе наследнике
-    """
-    modal_visible_css_class: str = None
-    """
-    css-класс для поиска открытого попапа на странице
-    Устанавливается мета-классом из конфига, если не переопределен в классе наследнике
-    """
     _base_url: str = None
 
     def __init__(self, fresh_session: bool = False, open_page: bool = True, query_params: Optional[Dict] = None,
@@ -166,18 +160,18 @@ class BasePage(AbstractBasePage):
 
     def wait_page_loaded(self) -> None:
         try:
-            if self.has_page_ready_script:
+            if self.page_conf.has_page_ready_script:
                 self.wait.until(check_js_condition_is_true(PAGE_READY_SCRIPT))
         except TimeoutException:
             raise BasePageException('Check that "e2eReady" attribute set by frontend on the current page.')
 
     def wait_loader_not_visible(self) -> None:
-        if self.page_loader_css_class:
-            self.wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, self.page_loader_css_class)))
+        if self.page_conf.page_loader_css_class:
+            self.wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, self.page_conf.page_loader_css_class)))
 
     def wait_tableloader_not_visible(self) -> None:
-        if self.table_loader_css_class:
-            self.wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, self.table_loader_css_class)))
+        if self.page_conf.table_loader_css_class:
+            self.wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, self.page_conf.table_loader_css_class)))
 
     def wait_dialog_is_visible(self) -> None:
         attr_name = 'role'
@@ -186,8 +180,8 @@ class BasePage(AbstractBasePage):
         self.wait.until(EC.visibility_of_element_located(search_pattern))
 
     def wait_modal_is_visible(self):
-        if self.modal_visible_css_class:
-            locator = (By.XPATH, f'//*[@class="{self.modal_visible_css_class}"]')
+        if self.page_conf.modal_visible_css_class:
+            locator = (By.XPATH, f'//*[@class="{self.page_conf.modal_visible_css_class}"]')
             self.wait.until(EC.visibility_of_element_located(locator))
 
     def find_element_by_data_e2e(self, value: str):

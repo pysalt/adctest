@@ -12,7 +12,7 @@ from adctest.parser.const import (
     RAW_PAGE_PATH_NAME,
 )
 from adctest.parser.exceptions import ParserException
-from hasoffers.e2e.pages import BasePage, BasePageMeta, BaseNavigation, BaseNavigationMeta, ElementDescriptor, \
+from adctest.pages import PageConfig, BasePage, BasePageMeta, BaseNavigation, BaseNavigationMeta, ElementDescriptor, \
     WebElementProxy
 from adctest.parser.utils import Utils, RelativeImportPath, LineRange
 from lxml.etree import XMLSyntaxError
@@ -54,12 +54,13 @@ RAW_PAGE_CLASS_REPR = """\
 \"""
 # put new imports from non project libraries here
 from typing import List
+from adctest.pages import PageConfig
 {additional_imports}
 
 
 class {raw_page_class}({base_page_class}):
     page_url = '{page_url}'
-    app_name = '{app_name}'
+    page_conf: PageConfig = '{page_conf_name}'
 """
 
 ATTRIBUTE_REPR = """\

@@ -27,5 +27,8 @@ setup(
     ],
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
-    extras_require={"tests": "pytest"},
+    extras_require={
+        "tests": "pytest",
+        ":python_version<'3.7'": ["dataclasses"],
+    },
 )

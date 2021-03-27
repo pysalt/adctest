@@ -1,4 +1,4 @@
-from adctest.helpers.base_config import BaseConfig
+from adctest.helpers.base_config import BaseConfig, ConfigAttrsMeta
 
 
 class Config(BaseConfig):
@@ -13,10 +13,6 @@ class Config(BaseConfig):
     """
     UPDATE_FROM_ENV = True
     ENV_KEY_PREFIX = 'test'
-
-    # base configurations for applications
-    BASE_APP_CONFIG = {
-    }
 
     WEB_DRIVER_WAIT = 10
     WEB_DRIVER_LOG_LEVEL = 'warning'
@@ -52,6 +48,23 @@ class Config(BaseConfig):
     DATA_E2E_ATTRIBUTE = 'data-e2e'
     TABLE_E2E_ATTRIBUTE = 'data-e2e-table'
     DEFAULT_TABLE_TAG = 'p-table'
+
+
+class ConfigAttrs(Config, metaclass=ConfigAttrsMeta):
+    """
+    If you want to redefine config from code (not by ENV) you can use this class.
+    Usage:
+    from adctest.config import config
+
+
+    custom_dict_config = {
+        ConfigAttrs.DATA_E2E_ATTRIBUTE = "my-custom-name"
+    }
+
+    # call it before run tests
+    config.update_from_custom_dict_config(custom_dict_config)
+    """
+    pass
 
 
 config = Config()
