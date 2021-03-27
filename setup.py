@@ -17,7 +17,7 @@ setup(
         "License :: OSI Approved :: MIT License",
     ],
     keywords="web e2e test testing end-to-end",
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(exclude=["tests", "examples"]),
     zip_safe=False,
     platforms="any",
     install_requires=[
